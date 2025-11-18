@@ -66,7 +66,6 @@ const Hero = ({ movie }) => {
     // If not logged in → redirect to login
     const check = await checkInMyList(movie.imdbID);
     if (!check.success && check.message?.includes("Authentication")) {
-      toast.error("Please login to save items");
       return navigate("/login");
     }
 

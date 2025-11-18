@@ -21,6 +21,9 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoading(true);
+    console.log("LOGIN → MODE:", mode);
+console.log("LOGIN EMAIL:", email);
+console.log("LOGIN PASSWORD:", `"${password}"`);
 
     try {
       const API = import.meta.env.VITE_API_BASE_URL;
@@ -44,7 +47,7 @@ const Login = () => {
       const data = await res.json();
 
       if (!res.ok) {
-        toast.error(data.message || "Invalid credentials");
+        toast.error("Invalid credentials");
         return;
       }
 

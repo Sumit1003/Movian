@@ -5,12 +5,17 @@ import { AuthContext } from "../context/AuthContext";
 const ProtectedRoute = ({ children }) => {
   const { user } = useContext(AuthContext);
 
-  // Not logged in → redirect to login
+  // ❌ If NO user → redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Logged in → allow access
+  // ❌ If admin is logged in → block access to user pages
+  if (user.role === "admin") {
+    return <Navigate to="/admin/dashboard" replace />;
+  }
+
+  // ✅ Allow normal user
   return children;
 };
 

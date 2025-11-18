@@ -19,7 +19,7 @@ const AdminLogin = () => {
     const data = await res.json();
     if (data.success) {
       toast.success("Admin logged in");
-      window.location.href = "/admin-dashboard";
+      window.location.href = "/admin/dashboard";
     } else {
       toast.error(data.message);
     }

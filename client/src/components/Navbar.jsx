@@ -1,32 +1,52 @@
 import React, { useState, useContext, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { motion, AnimatePresence, useScroll, useSpring } from "framer-motion";
-import { Menu, X, Search, User, Home, Film, Bookmark, LogOut, UserPlus, ChevronDown } from "lucide-react";
-import { CheckCircle, AlertTriangle } from "lucide-react"; // ✅ icons
-
+import {
+  motion,
+  AnimatePresence,
+  useScroll,
+  useSpring
+} from "framer-motion";
+import {
+  Menu,
+  X,
+  Search,
+  User,
+  Home,
+  Film,
+  Bookmark,
+  LogOut,
+  ChevronDown
+} from "lucide-react";
 
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
+
+  // UI State
   const [searchTerm, setSearchTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrollDirection, setScrollDirection] = useState("up");
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [isScrolled] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+
+  // Auth (User)
   const { user, logout } = useContext(AuthContext);
+
   const profileRef = useRef(null);
   const searchRef = useRef(null);
 
-  // Detect scroll direction (hide on scroll down, show on scroll up)
+  // -------------------------------------------
+  // 🔥 Scroll Hide Logic
+  // -------------------------------------------
   useEffect(() => {
     let lastScrollY = window.scrollY;
     let ticking = false;
 
     const updateScroll = () => {
       const currentScrollY = window.scrollY;
-      
+
       if (!ticking) {
         requestAnimationFrame(() => {
           if (currentScrollY > lastScrollY && currentScrollY > 100) {
@@ -41,50 +61,53 @@ const Navbar = () => {
       }
     };
 
-    window.addEventListener("scroll", updateScroll, { passive: true });
+    window.addEventListener("scroll", updateScroll);
     return () => window.removeEventListener("scroll", updateScroll);
   }, []);
 
-  // Close mobile menu when route changes
+  // -------------------------------------------
+  // 🔥 Close menus on route change
+  // -------------------------------------------
   useEffect(() => {
     setMenuOpen(false);
     setShowMobileSearch(false);
     setProfileDropdown(false);
   }, [location.pathname]);
 
-  // Close dropdown when clicking outside
+  // -------------------------------------------
+  // 🔥 Click outside detection
+  // -------------------------------------------
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (profileRef.current && !profileRef.current.contains(event.target)) {
+    const handler = (e) => {
+      if (profileRef.current && !profileRef.current.contains(e.target)) {
         setProfileDropdown(false);
       }
-      if (searchRef.current && !searchRef.current.contains(event.target)) {
+      if (searchRef.current && !searchRef.current.contains(e.target)) {
         setShowMobileSearch(false);
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  // Framer Motion scroll progress
-  const { scrollYProgress } = useScroll();
-  const scaleX = useSpring(scrollYProgress, {
-    stiffness: 100,
-    damping: 30,
-    restDelta: 0.001,
-  });
-
+  // -------------------------------------------
+  // 🔥 Search Handler
+  // -------------------------------------------
   const handleSearch = (e) => {
     e.preventDefault();
-    const trimmed = searchTerm.trim();
-    if (!trimmed) return;
-    navigate(`/search?query=${encodeURIComponent(trimmed)}`);
+    const term = searchTerm.trim();
+    if (!term) return;
+
+    navigate(`/search?query=${encodeURIComponent(term)}`);
     setSearchTerm("");
-    setMenuOpen(false);
     setShowMobileSearch(false);
+    setMenuOpen(false);
   };
 
+  // -------------------------------------------
+  // 🔥 Logout Handler
+  // -------------------------------------------
   const handleLogout = () => {
     logout();
     setMenuOpen(false);
@@ -92,154 +115,113 @@ const Navbar = () => {
     navigate("/");
   };
 
-  // Framer Motion variants
+  // -------------------------------------------
+  // Framer Motion Config
+  // -------------------------------------------
+  const { scrollYProgress } = useScroll();
+  const scaleX = useSpring(scrollYProgress, {
+    stiffness: 100,
+    damping: 30
+  });
+
   const navVariants = {
     hidden: { y: "-100%", opacity: 0 },
-    visible: {
-      y: 0,
-      opacity: 1,
-      transition: { duration: 0.4, ease: "easeOut" },
-    },
+    visible: { y: 0, opacity: 1 }
   };
 
   const sidebarVariants = {
     hidden: { x: "100%" },
-    visible: { 
-      x: 0, 
-      transition: { 
-        type: "spring", 
-        stiffness: 300, 
-        damping: 30 
-      } 
+    visible: {
+      x: 0,
+      transition: { type: "spring", stiffness: 300, damping: 30 }
     },
-    exit: { 
-      x: "100%", 
-      transition: { 
-        duration: 0.3, 
-        ease: "easeInOut" 
-      } 
-    },
-  };
-
-  const mobileSearchVariants = {
-    hidden: { opacity: 0, scale: 0.95, y: -10 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      y: 0,
-      transition: { duration: 0.2 }
-    },
-    exit: { 
-      opacity: 0, 
-      scale: 0.95,
-      y: -10,
-      transition: { duration: 0.2 }
-    }
+    exit: { x: "100%", transition: { duration: 0.3 } }
   };
 
   const dropdownVariants = {
     hidden: { opacity: 0, scale: 0.95, y: -10 },
-    visible: { 
-      opacity: 1, 
-      scale: 1,
-      y: 0,
-      transition: { duration: 0.2 }
-    },
-    exit: { 
-      opacity: 0, 
-      scale: 0.95,
-      y: -10,
-      transition: { duration: 0.2 }
-    }
+    visible: { opacity: 1, scale: 1, y: 0 },
+    exit: { opacity: 0, scale: 0.95, y: -10 }
   };
 
   const navLinks = [
     { name: "Home", path: "/", icon: Home },
     { name: "Movies", path: "/movies", icon: Film },
     { name: "Search", path: "/search", icon: Search },
-    { name: "MyList", path: "/mylist", icon: Bookmark },
+    { name: "MyList", path: "/mylist", icon: Bookmark }
   ];
 
-  const getNavBackground = () => {
-    if (isScrolled) {
-      return "bg-black/95 backdrop-blur-xl shadow-2xl";
-    }
-    return "bg-gradient-to-b from-black/90 to-transparent backdrop-blur-md";
-  };
+  const getNavBackground = () =>
+    isScrolled
+      ? "bg-black/95 backdrop-blur-xl shadow-xl"
+      : "bg-gradient-to-b from-black/90 to-transparent backdrop-blur-md";
 
   return (
     <>
-      {/* Netflix-style scroll progress bar */}
+      {/* Progress Bar */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-red-600 to-red-500 z-[100]"
+        className="fixed top-0 left-0 right-0 h-1 bg-red-600 z-[100]"
         style={{ scaleX, transformOrigin: "0%" }}
       />
 
-      {/* Navbar Header */}
+      {/* Navbar */}
       <motion.nav
         variants={navVariants}
         initial="visible"
         animate={scrollDirection === "down" ? "hidden" : "visible"}
-        className={`flex justify-between items-center px-4 sm:px-6 md:px-8 lg:px-12 py-3 fixed top-0 w-full z-50 transition-all duration-300 ${getNavBackground()} border-b border-gray-800/50`}
+        className={`flex justify-between items-center px-4 sm:px-6 md:px-10 py-3 fixed w-full top-0 z-50 transition-all ${getNavBackground()} border-b border-gray-800`}
       >
-        {/* Logo & Navigation */}
-        <div className="flex items-center gap-6 md:gap-8">
-          {/* Logo */}
+        {/* Logo */}
+        <div className="flex items-center gap-6">
           <motion.div
             onClick={() => navigate("/")}
-            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="flex items-center gap-2 cursor-pointer"
           >
-            <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow">
               <span className="text-white font-bold text-xl">M</span>
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-wide">MOVIAN</h1>
+            <h1 className="text-2xl font-bold text-white">MOVIAN</h1>
           </motion.div>
 
-          {/* Desktop Navigation */}
-          <ul className="hidden md:flex gap-6 lg:gap-8">
+          {/* Desktop Links */}
+          <ul className="hidden md:flex gap-6">
             {navLinks.map((link) => {
               const Icon = link.icon;
               return (
-                <motion.li
+                <li
                   key={link.path}
                   onClick={() => navigate(link.path)}
-                  whileHover={{ y: -2 }}
-                  whileTap={{ y: 0 }}
-                  className={`cursor-pointer flex items-center gap-2 py-2 px-3 rounded-lg transition-all ${
-                    location.pathname === link.path 
-                      ? "text-white bg-red-600/20 border-b-2 border-red-600" 
+                  className={`cursor-pointer px-3 py-2 rounded-lg flex items-center gap-2 text-sm ${
+                    location.pathname === link.path
+                      ? "text-white bg-red-600/20 border-b border-red-600"
                       : "text-gray-300 hover:text-white hover:bg-white/10"
                   }`}
                 >
                   <Icon size={18} />
-                  <span className="font-medium">{link.name}</span>
-                </motion.li>
+                  {link.name}
+                </li>
               );
             })}
           </ul>
         </div>
-        
 
-        {/* Desktop Search & Auth */}
+        {/* Desktop Auth */}
         <div className="hidden md:flex items-center gap-4">
-          {/* Auth Buttons */}
           {user ? (
+            /* ------------------------ USER VIEW ------------------------- */
             <div className="relative" ref={profileRef}>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
+                className="flex items-center gap-2 px-4 py-2 rounded-full bg-gray-800/50 border border-gray-700"
                 onClick={() => setProfileDropdown(!profileDropdown)}
-                className="flex items-center gap-2 bg-gray-800/50 hover:bg-gray-800/70 py-2 px-4 rounded-full transition-all border border-gray-700"
               >
                 <User size={18} className="text-red-500" />
-                <span className="text-white font-medium hidden lg:inline">
-                  {user.username}
-                </span>
-                <ChevronDown size={16} className={`text-gray-400 transition-transform ${profileDropdown ? 'rotate-180' : ''}`} />
-              </motion.button>
-              
+                <span className="hidden lg:block">{user.username}</span>
+                <ChevronDown
+                  className={`transition ${profileDropdown ? "rotate-180" : ""}`}
+                />
+              </button>
+
               <AnimatePresence>
                 {profileDropdown && (
                   <motion.div
@@ -247,214 +229,171 @@ const Navbar = () => {
                     initial="hidden"
                     animate="visible"
                     exit="exit"
-                    className="absolute right-0 mt-2 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 overflow-hidden"
+                    className="absolute right-0 mt-3 w-48 bg-gray-900 border border-gray-700 rounded-lg shadow-lg"
                   >
                     <button
                       onClick={handleLogout}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-gray-300 hover:bg-gray-800 hover:text-white transition-colors"
+                      className="w-full px-4 py-3 flex items-center gap-3 hover:bg-gray-800"
                     >
                       <LogOut size={18} />
-                      <span>Logout</span>
+                      Logout
                     </button>
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
           ) : (
+            /* ------------------------ GUEST VIEW ------------------------ */
             <div className="flex items-center gap-3">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              <button
                 onClick={() => navigate("/login")}
-                className="bg-gray-800/50 hover:bg-gray-800/70 text-white py-2 px-4 rounded-full transition-all border border-gray-700"
+                className="px-4 py-2 rounded-full bg-gray-800 border border-gray-700"
               >
                 Login
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+              </button>
+              <button
                 onClick={() => navigate("/register")}
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white py-2 px-4 rounded-full transition-all shadow-lg"
+                className="px-4 py-2 rounded-full bg-red-600 hover:bg-red-700"
               >
                 Sign Up
-              </motion.button>
+              </button>
             </div>
           )}
         </div>
 
-        {/* Mobile Controls */}
-        <div className="flex md:hidden items-center gap-4">
-          {/* Mobile Search Toggle */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
+        {/* Mobile Buttons */}
+        <div className="flex md:hidden gap-4">
+          <button
             onClick={() => setShowMobileSearch(!showMobileSearch)}
-            className="text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full text-white hover:bg-gray-700"
           >
             <Search size={20} />
-          </motion.button>
+          </button>
 
-          {/* Mobile Menu Toggle */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
+          <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+            className="p-2 rounded-full text-white hover:bg-gray-700"
           >
             {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </motion.button>
+          </button>
         </div>
       </motion.nav>
 
-      {/* Mobile Search Overlay */}
+      {/* ------------------------------ MOBILE SEARCH ------------------------------ */}
       <AnimatePresence>
         {showMobileSearch && (
           <motion.div
             key="mobile-search"
-            variants={mobileSearchVariants}
-            initial="hidden"
-            animate="visible"
-            exit="exit"
-            className="fixed top-20 left-4 right-4 bg-gray-900/95 backdrop-blur-md border border-gray-700 rounded-xl p-4 z-40 shadow-2xl"
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             ref={searchRef}
+            className="fixed top-20 left-4 right-4 bg-gray-900 border border-gray-700 rounded-lg p-4 z-40"
           >
             <form onSubmit={handleSearch} className="flex gap-2">
               <input
-                type="text"
+                className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-3 py-2"
                 placeholder="Search movies..."
-                className="flex-1 bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-red-500"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 autoFocus
               />
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                type="submit"
-                className="bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 px-4 py-3 rounded-lg font-medium text-white transition-all"
-              >
-                Search
-              </motion.button>
+              <button className="px-4 py-2 bg-red-600 rounded-lg">Go</button>
             </form>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mobile Sidebar Overlay */}
+      {/* ------------------------------ MOBILE MENU ------------------------------ */}
       <AnimatePresence>
         {menuOpen && (
           <>
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
+              animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/70 z-40"
+              className="fixed inset-0 bg-black z-40"
             />
-            
-            {/* Sidebar */}
+
             <motion.div
-              key="mobile-menu"
               variants={sidebarVariants}
               initial="hidden"
               animate="visible"
               exit="exit"
-              className="fixed top-0 right-0 w-80 max-w-[85vw] h-full bg-gray-900 text-white flex flex-col z-50 shadow-2xl"
+              className="fixed right-0 top-0 w-80 max-w-[85vw] h-full bg-gray-900 z-50 flex flex-col"
             >
               {/* Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-800">
-                <motion.div
-                  onClick={() => {
-                    navigate("/");
-                    setMenuOpen(false);
-                  }}
-                  whileTap={{ scale: 0.95 }}
+                <div
                   className="flex items-center gap-2 cursor-pointer"
+                  onClick={() => navigate("/")}
                 >
-                  <div className="w-10 h-10 bg-gradient-to-br from-red-600 to-red-700 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold text-xl">M</span>
+                  <div className="w-10 h-10 bg-red-600 rounded-lg flex justify-center items-center">
+                    <span className="font-bold text-xl text-white">M</span>
                   </div>
                   <h2 className="text-xl font-bold">MOVIAN</h2>
-                </motion.div>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setMenuOpen(false)}
-                  className="text-gray-400 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
-                >
+                </div>
+
+                <button onClick={() => setMenuOpen(false)}>
                   <X size={24} />
-                </motion.button>
+                </button>
               </div>
 
-              {/* Navigation Links */}
-              <div className="flex-1 p-6">
-                <ul className="space-y-2">
-                  {navLinks.map((link) => {
-                    const Icon = link.icon;
-                    return (
-                      <motion.li
-                        key={link.path}
-                        onClick={() => {
-                          navigate(link.path);
-                          setMenuOpen(false);
-                        }}
-                        whileHover={{ x: 8 }}
-                        transition={{ type: "spring", stiffness: 300 }}
-                        className={`cursor-pointer py-3 px-4 rounded-lg flex items-center gap-3 ${
-                          location.pathname === link.path 
-                            ? "bg-red-600/20 text-red-500" 
-                            : "text-gray-300 hover:bg-white/10 hover:text-white"
-                        }`}
-                      >
-                        <Icon size={20} />
-                        <span className="text-lg font-medium">{link.name}</span>
-                      </motion.li>
-                    );
-                  })}
-                </ul>
+              {/* Nav Links */}
+              <div className="flex-1 p-6 space-y-3">
+                {navLinks.map((link) => {
+                  const Icon = link.icon;
+                  return (
+                    <div
+                      key={link.path}
+                      onClick={() => navigate(link.path)}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg ${
+                        location.pathname === link.path
+                          ? "bg-red-600/20 text-red-500"
+                          : "text-gray-300 hover:bg-white/10"
+                      }`}
+                    >
+                      <Icon size={20} />
+                      {link.name}
+                    </div>
+                  );
+                })}
               </div>
 
               {/* Auth Section */}
               <div className="p-6 border-t border-gray-800">
                 {user ? (
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3 p-4 bg-gray-800/50 rounded-lg">
+                  <>
+                    <div className="flex items-center gap-3 bg-gray-800 rounded-lg p-4 mb-3">
                       <User size={20} className="text-red-500" />
                       <div>
-                        <p className="text-gray-400 text-sm">Logged in as</p>
-                        <p className="text-white font-semibold">{user.username}</p>
+                        <p className="text-sm text-gray-400">Logged in as</p>
+                        <p className="text-white">{user.username}</p>
                       </div>
                     </div>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
+
+                    <button
                       onClick={handleLogout}
-                      className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                      className="w-full py-3 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center gap-2"
                     >
-                      <LogOut size={18} />
-                      <span>Logout</span>
-                    </motion.button>
-                  </div>
+                      <LogOut size={20} /> Logout
+                    </button>
+                  </>
                 ) : (
-                  <div className="space-y-3">
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        navigate("/login");
-                        setMenuOpen(false);
-                      }}
-                      className="w-full bg-gray-800 hover:bg-gray-700 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                  <>
+                    <button
+                      onClick={() => navigate("/login")}
+                      className="w-full py-3 bg-gray-800 rounded-lg mb-3"
                     >
-                      <User size={18} />
-                      <span>Login</span>
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => {
-                        navigate("/register");
-                        setMenuOpen(false);
-                      }}
-                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2"
+                      Login
+                    </button>
+                    <button
+                      onClick={() => navigate("/register")}
+                      className="w-full py-3 bg-red-600 rounded-lg"
                     >
-                      <UserPlus size={18} />
-                      <span>Sign Up</span>
-                    </motion.button>
-                  </div>
+                      Sign Up
+                    </button>
+                  </>
                 )}
               </div>
             </motion.div>

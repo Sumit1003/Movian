@@ -566,20 +566,24 @@ const CommentCard = ({ comment, onDelete, onReply, isProcessing }) => {
 
       {/* ADMIN REPLIES */}
       {comment.replies?.length > 0 && (
-        <div className="mt-4 ml-4 border-l-2 border-gray-700 pl-4 space-y-3">
-          {comment.replies.map((reply, i) => (
-            <div key={i} className="bg-gray-900 p-4 rounded-lg">
-              <p className="text-blue-400 text-sm font-semibold mb-1">
-                {reply.adminName} (Admin)
-              </p>
-              <p className="text-gray-300">{reply.replyText}</p>
-              <p className="text-gray-500 text-xs mt-1">
-                {new Date(reply.createdAt).toLocaleString()}
-              </p>
-            </div>
-          ))}
-        </div>
-      )}
+  <div className="mt-4 ml-4 border-l-2 border-gray-700 pl-4 space-y-3">
+    {comment.replies.map((reply, index) => (
+      <div
+        key={reply._id || `${comment._id}-${index}`} 
+        className="bg-gray-900 p-4 rounded-lg"
+      >
+        <p className="text-blue-400 text-sm font-semibold mb-1">
+          {reply.adminName} (Admin)
+        </p>
+        <p className="text-gray-300">{reply.replyText}</p>
+        <p className="text-gray-500 text-xs mt-1">
+          {new Date(reply.createdAt).toLocaleString()}
+        </p>
+      </div>
+    ))}
+  </div>
+)}
+
 
       {/* REPLY INPUT & ACTIONS */}
       <div className="mt-6 flex flex-col sm:flex-row gap-3">

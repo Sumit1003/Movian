@@ -4,7 +4,6 @@ import toast from "react-hot-toast";
 export const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // Load user from localStorage safely
   const [user, setUser] = useState(() => {
     try {
       const stored = localStorage.getItem("user");
@@ -15,22 +14,20 @@ export const AuthProvider = ({ children }) => {
     }
   });
 
-  /* ------------------------------------------------------------------
-      IMPORTANT:
-      Render backend uses HTTP-only cookies for authentication.
-      We CANNOT decode or access cookies from JS.
-
-      So we do NOT store token in localStorage.
-      Only user info is stored.
-  ------------------------------------------------------------------ */
-  
   const [isCheckingSession, setIsCheckingSession] = useState(true);
 
-  // Auto-restore session on refresh
   useEffect(() => {
     const checkSession = async () => {
+      
+      // 🔥🔥 SKIP user auth check on admin pages 🔥🔥
+      if (window.location.pathname.startsWith("/admin")) {
+        setIsCheckingSession(false);
+        return;
+      }
+
       try {
         const API = import.meta.env.VITE_API_BASE_URL;
+
         if (!API) {
           console.warn("⚠ Missing API URL");
           setIsCheckingSession(false);
@@ -63,13 +60,11 @@ export const AuthProvider = ({ children }) => {
     checkSession();
   }, []);
 
-  // Login
   const login = (userData) => {
     setUser(userData);
     localStorage.setItem("user", JSON.stringify(userData));
   };
 
-  // Logout
   const logout = async () => {
     try {
       const API = import.meta.env.VITE_API_BASE_URL;
