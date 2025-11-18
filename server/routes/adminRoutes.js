@@ -1,40 +1,28 @@
 import express from "express";
 import {
   adminLogin,
+  adminLogout,
   verifyAdminSession,
   getAllUsers,
   toggleBan,
   getAllComments,
   deleteComment,
-  replyToComment
+  replyToComment,
 } from "../controllers/adminController.js";
+
 import { verifyAdmin } from "../middleware/adminAuth.js";
 
 const router = express.Router();
 
-/* -------------------------------
-   🔐 Admin Authentication Routes
--------------------------------- */
-
-router.post("/login", adminLogin);               // Public
-router.get("/session", verifyAdmin, verifyAdminSession); // Protected
-
-
-/* -------------------------------
-   👥 User Management
--------------------------------- */
+router.post("/login", adminLogin);
+router.post("/logout", adminLogout);
+router.get("/session", verifyAdmin, verifyAdminSession);
 
 router.get("/users", verifyAdmin, getAllUsers);
-router.put("/users/ban/:userId", verifyAdmin, toggleBan);
-
-
-/* -------------------------------
-   💬 Comment Moderation
--------------------------------- */
+router.put("/ban/:userId", verifyAdmin, toggleBan);
 
 router.get("/comments", verifyAdmin, getAllComments);
 router.delete("/comments/:id", verifyAdmin, deleteComment);
 router.post("/comments/reply/:id", verifyAdmin, replyToComment);
-
 
 export default router;

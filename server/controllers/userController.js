@@ -35,7 +35,6 @@ export const registerUser = async (req, res) => {
       });
     }
 
-    // Remove old pending verifications
     await VerifyPending.deleteOne({ email });
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -57,48 +56,76 @@ export const registerUser = async (req, res) => {
 
     const verifyLink = `${process.env.CLIENT_URL}/verify-email/${token}`;
 
-    await sendEmail(
+    const emailResult = await sendEmail(
       email,
       "Verify Your Email - Movian",
       `
-      <h2>Welcome to Movian 🎬</h2>
-      <p>Click below to verify your email.</p>
-      <a href="${verifyLink}">Verify Email</a>
+        <h2>Welcome to Movian 🎬</h2>
+        <p>Click the button below to verify your email:</p>
+        <a href="${verifyLink}" 
+           style="
+             display:inline-block;
+             margin-top:10px;
+             padding:10px 20px;
+             background:#6366f1;
+             color:white;
+             border-radius:6px;
+             text-decoration:none;
+             font-weight:bold;">
+          Verify Email
+        </a>
+        <p>If the button doesn't work, use this link:</p>
+        <p>${verifyLink}</p>
       `
     );
 
+    if (!emailResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Verification email could not be sent. Try again later.",
+      });
+    }
+
     return res.json({
       success: true,
-      message: "Verification email sent. Please verify to complete registration.",
+      message: "Verification email sent. Check your inbox.",
     });
   } catch (err) {
     console.error("Register Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
 
 /** -----------------------------------------
- *  LOGIN USER
+ *  LOGIN USER (Only if email verified)
  * ----------------------------------------- */
 export const loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user)
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
 
-    // BANNED USER CHECK
-    if (user.isBanned) {
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    }
+
+    if (!user.isVerified) {
       return res.status(403).json({
         success: false,
-        message: "Your account has been banned",
+        message: "Email not verified. Please check your inbox.",
       });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ success: false, message: "Invalid credentials" });
+    if (!isMatch) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid credentials",
+      });
+    }
 
     const token = generateToken(user._id);
 
@@ -119,8 +146,33 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Login Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Login Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+/** -----------------------------------------
+ *  LOGOUT USER
+ * ----------------------------------------- */
+export const logoutUser = async (req, res) => {
+  try {
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      expires: new Date(0),
+    };
+
+    res.cookie("token", "", cookieOptions);
+    res.cookie("admin_token", "", cookieOptions);
+
+    return res.json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (err) {
+    console.error("❌ Logout Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
@@ -131,9 +183,19 @@ export const forgotPassword = async (req, res) => {
   try {
     const { email, dob } = req.body;
 
+    if (!email || !dob) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and Date of Birth are required",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+    const normalizedDOB = new Date(dob).toISOString().split("T")[0];
+
     const user = await User.findOne({
-      email: email.toLowerCase(),
-      dob: new Date(dob),
+      email: normalizedEmail,
+      dob: normalizedDOB,
     });
 
     if (!user) {
@@ -143,130 +205,112 @@ export const forgotPassword = async (req, res) => {
       });
     }
 
-    const resetToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-      expiresIn: "1h",
-    });
+    const resetToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
     const resetLink = `${process.env.CLIENT_URL}/reset-password/${resetToken}`;
 
-    await sendEmail(
+    const emailHTML = `
+      <div style="font-family: Arial; padding: 20px; background: #111; color: white;">
+        <h2 style="color: #ff4545;">Reset Your Movian Password</h2>
+        <p>Hello <strong>${user.username}</strong>,</p>
+        <p>You requested to reset your Movian account password.</p>
+        <a href="${resetLink}"
+          style="
+            display: inline-block;
+            margin-top: 20px;
+            padding: 12px 20px;
+            background: #ff4545;
+            color: white;
+            border-radius: 6px;
+            text-decoration: none;
+            font-weight: bold;">
+          Reset Password
+        </a>
+        <p style="margin-top: 20px; color: #bbb;">
+          If you didn't request this, ignore this email.
+          <br />This link expires in <strong>1 hour</strong>.
+        </p>
+      </div>
+    `;
+
+    const emailResult = await sendEmail(
       user.email,
       "Reset Your Movian Password",
-      `
-      <h2>Reset Password</h2>
-      <a href="${resetLink}">Click to reset</a>
-      `
+      emailHTML
     );
+
+    if (!emailResult.success) {
+      return res.status(500).json({
+        success: false,
+        message: "Failed to send reset email. Try again later.",
+      });
+    }
 
     return res.json({
       success: true,
-      message: "Password reset instructions sent",
+      message: "Password reset link sent to your email.",
     });
+
   } catch (err) {
     console.error("Forgot Password Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 /** -----------------------------------------
- *  RESET PASSWORD
+ *  RESET PASSWORD (After clicking email link)
  * ----------------------------------------- */
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
     const { password } = req.body;
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required",
+      });
+    }
 
+    // 1️⃣ Verify token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset link",
+      });
+    }
+
+    // 2️⃣ Find user
     const user = await User.findById(decoded.id);
-    if (!user)
-      return res.status(400).json({ success: false, message: "User not found" });
 
-    const hashed = await bcrypt.hash(password, 12);
-    user.password = hashed;
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // 3️⃣ Hash new password
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    // 4️⃣ Update user password
+    user.password = hashedPassword;
     await user.save();
 
     return res.json({
       success: true,
-      message: "Password reset successful",
-    });
-  } catch (err) {
-    console.error("Reset Error:", err);
-    res.status(400).json({
-      success: false,
-      message: "Invalid or expired token",
-    });
-  }
-};
-
-/** -----------------------------------------
- *  VERIFY EMAIL
- * ----------------------------------------- */
-export const verifyEmail = async (req, res) => {
-  try {
-    const { token } = req.params;
-
-    let decoded;
-    try {
-      decoded = jwt.verify(token, process.env.JWT_SECRET);
-    } catch (err) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or expired token",
-      });
-    }
-
-    // Find pending record
-    const pending = await VerifyPending.findOne({ token });
-    if (!pending) {
-      return res.status(400).json({
-        success: false,
-        message: "Verification link expired or invalid",
-      });
-    }
-
-    // 1️⃣ Check if email already verified
-    const emailExists = await User.findOne({ email: pending.email });
-    if (emailExists) {
-      await VerifyPending.deleteOne({ token });
-      return res.json({
-        success: true,
-        message: "Email already verified",
-      });
-    }
-
-    // 2️⃣ Check username duplicate
-    let finalUsername = pending.username;
-
-    const usernameExists = await User.findOne({ username: finalUsername });
-
-    if (usernameExists) {
-      // Auto-fix username collision → make it unique
-      finalUsername = `${pending.username}_${Math.floor(Math.random() * 9000 + 1000)}`;
-      console.log("⚠ Username existed, changed to:", finalUsername);
-    }
-
-    // 3️⃣ Create the actual user
-    await User.create({
-      username: finalUsername,
-      email: pending.email,
-      password: pending.password,
-      dob: pending.dob,
-      isVerified: true,
-    });
-
-    // 4️⃣ Remove pending verification record
-    await VerifyPending.deleteOne({ token });
-
-    return res.json({
-      success: true,
-      message: "Email verified & account created successfully!",
-      username: finalUsername,
+      message: "Password reset successful. You can now log in.",
     });
 
   } catch (err) {
-    console.error("Verify Email Error:", err);
-
+    console.error("❌ Reset Password Error:", err);
     return res.status(500).json({
       success: false,
       message: "Server error",
@@ -276,64 +320,176 @@ export const verifyEmail = async (req, res) => {
 
 
 /** -----------------------------------------
+ *  VERIFY EMAIL
+ * ----------------------------------------- */
+export const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    // Validate token
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or expired verification link",
+      });
+    }
+
+    // Find pending record
+    const pending = await VerifyPending.findOne({ token });
+    if (!pending) {
+      return res.status(400).json({
+        success: false,
+        message: "Verification link is invalid or has expired",
+      });
+    }
+
+    // Check if email already exists
+    const existingEmail = await User.findOne({ email: pending.email });
+    if (existingEmail) {
+      await VerifyPending.deleteOne({ token });
+      return res.json({
+        success: true,
+        message: "Email already verified",
+      });
+    }
+
+    // Check if username already exists
+    const existingUsername = await User.findOne({ username: pending.username });
+    if (existingUsername) {
+      await VerifyPending.deleteOne({ token });
+      return res.status(400).json({
+        success: false,
+        message: "Username already taken. Please register with another username.",
+      });
+    }
+
+    // Create verified user
+    const newUser = await User.create({
+      username: pending.username,
+      email: pending.email,
+      password: pending.password,
+      dob: pending.dob,
+      isVerified: true,
+    });
+
+    await VerifyPending.deleteOne({ token });
+
+    const authToken = generateToken(newUser._id);
+
+    res.cookie("token", authToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    return res.json({
+      success: true,
+      message: "Email verified successfully",
+      user: {
+        id: newUser._id,
+        username: newUser.username,
+        email: newUser.email,
+      },
+    });
+
+  } catch (err) {
+    console.error("Verify Email Error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
+/** -----------------------------------------
  *  GET CURRENT USER
  * ----------------------------------------- */
 export const getCurrentUser = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
 
-    if (!user)
-      return res.status(404).json({ success: false, message: "User not found" });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
 
-    res.json({ success: true, user });
+    return res.json({ success: true, user });
+
   } catch (err) {
-    console.error("Get User Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Get Current User Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 /** -----------------------------------------
- *  USER PROFILE (Protected)
+ *  USER PROFILE
  * ----------------------------------------- */
 export const getUserProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
-    if (!user)
-      return res.status(404).json({ success: false, message: "User not found" });
 
-    res.json({ success: true, user });
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.json({ success: true, user });
+
   } catch (err) {
-    console.error("Profile Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Profile Fetch Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
 /** -----------------------------------------
- *  UPDATE USER
+ *  UPDATE USER PROFILE
  * ----------------------------------------- */
 export const updateUser = async (req, res) => {
   try {
     const updates = req.body;
     const allowed = ["username", "email", "dob", "avatar"];
-
     const safeUpdates = {};
+
     Object.keys(updates).forEach((key) => {
       if (allowed.includes(key)) safeUpdates[key] = updates[key];
     });
 
-    const updatedUser = await User.findByIdAndUpdate(
-      req.user.id,
-      safeUpdates,
-      { new: true }
-    ).select("-password");
+    if (safeUpdates.email) {
+      safeUpdates.email = safeUpdates.email.toLowerCase().trim();
+
+      const exists = await User.findOne({
+        email: safeUpdates.email,
+        _id: { $ne: req.user.id },
+      });
+
+      if (exists) {
+        return res.status(400).json({
+          success: false,
+          message: "Email is already in use by another account",
+        });
+      }
+    }
+
+    const updatedUser =
+      await User.findByIdAndUpdate(req.user.id, safeUpdates, { new: true })
+        .select("-password");
 
     return res.json({
       success: true,
-      message: "Profile updated",
+      message: "Profile updated successfully",
       user: updatedUser,
     });
+
   } catch (err) {
-    console.error("Update Error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error("❌ Update User Error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 };

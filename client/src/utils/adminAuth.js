@@ -1,18 +1,14 @@
 // src/utils/adminAuth.js
-
-const API = import.meta.env.VITE_API_BASE_URL || "";
+import { api } from "./api"; // use your global axios instance
 
 export const isAdminLoggedIn = async () => {
   try {
-    const res = await fetch(`${API}/api/admin/session`, {
-      method: "GET",
-      credentials: "include",
-    });
+    const res = await api.get("/api/admin/session");
 
-    if (!res.ok) return false;
+    if (!res.data || !res.data.success) return false;
 
-    const data = await res.json();
-    return data.success === true;
+    // Must be admin role
+    return res.data.admin?.role === "admin";
   } catch (err) {
     console.error("Admin session check failed:", err);
     return false;

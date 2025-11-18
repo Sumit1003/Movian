@@ -8,6 +8,7 @@ import {
   getCurrentUser,
   getUserProfile,
   updateUser,
+  logoutUser
 } from "../controllers/userController.js";
 
 import { protect } from "../middleware/authMiddleware.js";
@@ -19,6 +20,10 @@ const router = express.Router();
 // =========================
 router.post("/register", registerUser);
 router.post("/login", loginUser);
+
+router.post("/logout", logoutUser);
+
+
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPassword);
 router.get("/verify-email/:token", verifyEmail);
@@ -29,5 +34,8 @@ router.get("/verify-email/:token", verifyEmail);
 router.get("/profile", protect, getUserProfile);
 router.put("/update", protect, updateUser);  // <-- FIXED: should be PUT
 router.get("/me", protect, getCurrentUser);
+
+
+
 
 export default router;

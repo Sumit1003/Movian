@@ -1,16 +1,22 @@
 import axios from "axios";
 
-// Unified API base URL for dev + prod
-const API = import.meta.env.VITE_API_BASE_URL || "";
+/* =============================================
+   🔥 GLOBAL AXIOS INSTANCE (BEST PRACTICE)
+============================================= */
+const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim();
 
-/* ===================================
-    MOVIES — TRENDING / DETAILS
-=================================== */
+export const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true,               // COOKIE SUPPORT (IMPORTANT)
+  headers: { "Content-Type": "application/json" }
+});
+
+/* =============================================
+   MOVIES — TRENDING / DETAILS
+============================================= */
 export const fetchTrendingMovies = async () => {
   try {
-    const res = await axios.get(`${API}/api/movies/trending`, {
-      withCredentials: true,
-    });
+    const res = await api.get("/api/movies/trending");
     return res.data;
   } catch (error) {
     console.error("Error fetching trending movies:", error);
@@ -20,9 +26,7 @@ export const fetchTrendingMovies = async () => {
 
 export const getMovieById = async (id) => {
   try {
-    const res = await axios.get(`${API}/api/movies/movie/${id}`, {
-      withCredentials: true,
-    });
+    const res = await api.get(`/api/movies/movie/${id}`);
 
     if (!res.data || res.data.Response === "False") {
       throw new Error("Invalid movie data");
@@ -35,14 +39,14 @@ export const getMovieById = async (id) => {
   }
 };
 
-/* ===================================
-    MOVIE POSTERS (SEARCH)
-=================================== */
+/* =============================================
+   MOVIE POSTERS
+============================================= */
 export const fetchMoviePosters = async (title = "") => {
   try {
     const query = encodeURIComponent(title);
-    const res = await axios.get(`${API}/api/movies/search/${query}`, {
-      params: { page: 1 },
+    const res = await api.get(`/api/movies/search/${query}`, {
+      params: { page: 1 }
     });
 
     const posters = res.data.movies
@@ -56,31 +60,32 @@ export const fetchMoviePosters = async (title = "") => {
   }
 };
 
-/* ===================================
-    TRAILER FETCH
-=================================== */
+/* =============================================
+   TRAILER FETCH
+============================================= */
 export const fetchTrailer = async (title, year = "") => {
   if (!title) return null;
 
   const encoded = encodeURIComponent(title);
-  let url = `${API}/api/movies/trailer/${encoded}`;
+  let url = `/api/movies/trailer/${encoded}`;
   if (year) url += `/${year}`;
 
-  const res = await fetch(url, { credentials: "include" });
-  const data = await res.json();
-
-  return data?.videoId ? data : null;
+  try {
+    const res = await api.get(url);
+    return res.data?.videoId ? res.data : null;
+  } catch {
+    return null;
+  }
 };
 
-/* ===================================
-    SEARCH MOVIES
-=================================== */
+/* =============================================
+   SEARCH MOVIES
+============================================= */
 export const searchMovies = async (query, page = 1) => {
   try {
-    const res = await axios.get(
-      `${API}/api/movies/search/${encodeURIComponent(query)}`,
-      { params: { page } }
-    );
+    const res = await api.get(`/api/movies/search/${encodeURIComponent(query)}`, {
+      params: { page }
+    });
 
     const data = res.data;
 
@@ -89,19 +94,19 @@ export const searchMovies = async (query, page = 1) => {
     if (data.results) return { movies: data.results };
 
     return { movies: [] };
-  } catch (error) {
-    console.error("Search error:", error);
+  } catch (e) {
+    console.error("Search error:", e);
     throw new Error("Failed to fetch search results");
   }
 };
 
-/* ===================================
-    GENRE MOVIES
-=================================== */
+/* =============================================
+   GENRE MOVIES
+============================================= */
 export const fetchMoviesByGenre = async (genre, page = 1) => {
   try {
-    const res = await axios.get(`${API}/api/movies/genre/${genre}`, {
-      params: { page },
+    const res = await api.get(`/api/movies/genre/${genre}`, {
+      params: { page }
     });
 
     return res.data;
@@ -111,15 +116,13 @@ export const fetchMoviesByGenre = async (genre, page = 1) => {
   }
 };
 
-/* ===================================
-    ⭐ MY LIST — AUTH PROTECTED
-=================================== */
+/* =============================================
+   ⭐ MY LIST (Auth Protected)
+============================================= */
 export const checkInMyList = async (imdbID) => {
   try {
-    const res = await fetch(`${API}/api/mylist/check/${imdbID}`, {
-      credentials: "include",
-    });
-    return await res.json();
+    const res = await api.get(`/api/mylist/check/${imdbID}`);
+    return res.data;
   } catch {
     return { success: false, exists: false };
   }
@@ -127,27 +130,17 @@ export const checkInMyList = async (imdbID) => {
 
 export const addToMyList = async (movie) => {
   try {
-    const res = await fetch(`${API}/api/mylist/add`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(movie),
-    });
-
-    return await res.json();
-  } catch (err) {
+    const res = await api.post("/api/mylist/add", movie);
+    return res.data;
+  } catch {
     return { success: false };
   }
 };
 
 export const removeFromMyList = async (imdbID) => {
   try {
-    const res = await fetch(`${API}/api/mylist/remove/${imdbID}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-
-    return await res.json();
+    const res = await api.delete(`/api/mylist/remove/${imdbID}`);
+    return res.data;
   } catch {
     return { success: false };
   }
@@ -155,25 +148,20 @@ export const removeFromMyList = async (imdbID) => {
 
 export const fetchMyList = async () => {
   try {
-    const res = await fetch(`${API}/api/mylist/all`, {
-      credentials: "include",
-    });
-    return await res.json();
+    const res = await api.get("/api/mylist/all");
+    return res.data;
   } catch {
     return { success: false, list: [] };
   }
 };
 
-/* ===================================
-    COMMENTS
-=================================== */
+/* =============================================
+   COMMENTS
+============================================= */
 export const fetchComments = async (movieId) => {
   try {
-    const res = await fetch(`${API}/api/comments/${movieId}`, {
-      credentials: "include",
-    });
-
-    return await res.json();
+    const res = await api.get(`/api/comments/${movieId}`);
+    return res.data;
   } catch {
     return { success: false, comments: [] };
   }
@@ -181,14 +169,12 @@ export const fetchComments = async (movieId) => {
 
 export const postComment = async (movieId, comment) => {
   try {
-    const res = await fetch(`${API}/api/comments/add`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ movieId, comment }),
+    const res = await api.post("/api/comments/add", {
+      movieId,
+      comment
     });
 
-    return await res.json();
+    return res.data;
   } catch {
     return { success: false };
   }
