@@ -4,9 +4,9 @@ A full-stack movie discovery and streaming information platform built with the M
 
 ![Movian Preview](https://img.shields.io/badge/React-18.2-blue) ![MongoDB](https://img.shields.io/badge/MongoDB-7.0-green) ![Node.js](https://img.shields.io/badge/Node.js-20.0-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-## 🚀 Live Demo
-**Frontend**: `https://yourdomain.com`  
-**Backend API**: `https://api.yourdomain.com`
+## 🚀 Live Demo:  `https://movian.onrender.com`  
+
+
 
 ## ✨ Features
 
